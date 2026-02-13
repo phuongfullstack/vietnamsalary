@@ -38,6 +38,22 @@ export const REGION_DETAILS = {
 export const BASE_SALARY = 2340000; // Mức lương tham chiếu 2026
 export const MAX_INSURANCE_BASE = BASE_SALARY * 20; // 46,800,000 VND cho BHXH/BHYT
 
+// Tỷ lệ đóng bảo hiểm của Người lao động (Employee)
+export const EMPLOYEE_INSURANCE_RATES = {
+  BHXH: 0.08,
+  BHYT: 0.015,
+  BHTN: 0.01,
+  TOTAL: 0.105
+};
+
+// Tỷ lệ đóng bảo hiểm của Người sử dụng lao động (Employer)
+export const EMPLOYER_INSURANCE_RATES = {
+  BHXH: 0.175,
+  BHYT: 0.03,
+  BHTN: 0.01,
+  TOTAL: 0.215
+};
+
 export const DEDUCTIONS = {
   PERSONAL_2026: 15500000,
   DEPENDENT_2026: 6200000,

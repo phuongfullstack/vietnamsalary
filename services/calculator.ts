@@ -1,6 +1,6 @@
 
 import { CalculationInput, CalculationResult, CalculationMode, Region, InsuranceBreakdown, TaxBracket } from '../types';
-import { REGION_MIN_WAGE, DEDUCTIONS, TAX_BRACKETS_2026, TAX_BRACKETS_2025, MAX_INSURANCE_BASE } from '../constants';
+import { REGION_MIN_WAGE, DEDUCTIONS, TAX_BRACKETS_2026, TAX_BRACKETS_2025, MAX_INSURANCE_BASE, EMPLOYEE_INSURANCE_RATES, EMPLOYER_INSURANCE_RATES } from '../constants';
 
 /**
  * Formats a number with Vietnamese currency style (dots as thousands separators)
@@ -26,9 +26,9 @@ function calculateInsurance(gross: number, region: Region, isExpat: boolean, isP
   const baseForBH = Math.min(gross, MAX_INSURANCE_BASE);
   const baseForBHTN = Math.min(gross, REGION_MIN_WAGE[region] * 20);
 
-  const bhxh = Math.round(0.08 * baseForBH);
-  const bhyt = Math.round(0.015 * baseForBH);
-  const bhtn = isExpat ? 0 : Math.round(0.01 * baseForBHTN);
+  const bhxh = Math.round(EMPLOYEE_INSURANCE_RATES.BHXH * baseForBH);
+  const bhyt = Math.round(EMPLOYEE_INSURANCE_RATES.BHYT * baseForBH);
+  const bhtn = isExpat ? 0 : Math.round(EMPLOYEE_INSURANCE_RATES.BHTN * baseForBHTN);
 
   return {
     bhxh,
@@ -77,9 +77,10 @@ function calculatePIT(taxableIncome: number, brackets: { limit: number; rate: nu
   return { total: Math.round(totalTax), breakdown };
 }
 
-function calculateFull(gross: number, input: CalculationInput, is2026: boolean): { net: number; insurance: InsuranceBreakdown; taxableIncome: number; incomeBeforeTax: number; tax: number; taxBrackets: TaxBracket[] } {
+function calculateFull(gross: number, taxableAllowance: number, input: CalculationInput, is2026: boolean): { net: number; insurance: InsuranceBreakdown; taxableIncome: number; incomeBeforeTax: number; tax: number; taxBrackets: TaxBracket[] } {
   const insurance = calculateInsurance(gross, input.region, input.isExpat, input.isProbation);
-  const incomeBeforeTax = gross - insurance.total;
+  const totalIncome = gross + taxableAllowance;
+  const incomeBeforeTax = totalIncome - insurance.total;
   
   const personalDeduction = is2026 ? DEDUCTIONS.PERSONAL_2026 : DEDUCTIONS.PERSONAL_2025;
   const dependentDeduction = (is2026 ? DEDUCTIONS.DEPENDENT_2026 : DEDUCTIONS.DEPENDENT_2025) * input.dependents;
@@ -87,7 +88,7 @@ function calculateFull(gross: number, input: CalculationInput, is2026: boolean):
   const taxableIncome = Math.max(0, incomeBeforeTax - personalDeduction - dependentDeduction);
   const brackets = is2026 ? TAX_BRACKETS_2026 : TAX_BRACKETS_2025;
   
-  const { total: tax, breakdown } = calculatePIT(taxableIncome, brackets, input.isProbation, gross);
+  const { total: tax, breakdown } = calculatePIT(taxableIncome, brackets, input.isProbation, totalIncome);
   
   const net = incomeBeforeTax - tax;
 
@@ -95,13 +96,14 @@ function calculateFull(gross: number, input: CalculationInput, is2026: boolean):
 }
 
 function findGrossFromNet(netTarget: number, input: CalculationInput, is2026: boolean): number {
-  let low = netTarget;
-  let high = netTarget * 3;
+  let low = 0;
+  let high = netTarget * 3 + 10000000;
   let iterations = 0;
   
   while (iterations < 100) {
     const mid = (low + high) / 2;
-    const calc = calculateFull(mid, input, is2026);
+    // Note: In NET_TO_GROSS, we solve for Gross while taxableAllowance is a fixed input
+    const calc = calculateFull(mid, input.taxableAllowance, input, is2026);
     if (Math.abs(calc.net - netTarget) < 1) return Math.round(mid);
     if (calc.net < netTarget) {
       low = mid;
@@ -120,23 +122,24 @@ export function performCalculation(input: CalculationInput): CalculationResult {
     gross = findGrossFromNet(input.salary, input, true);
   }
 
-  const result2026 = calculateFull(gross, input, true);
-  const result2025 = calculateFull(gross, input, false);
+  const result2026 = calculateFull(gross, input.taxableAllowance, input, true);
+  const result2025 = calculateFull(gross, input.taxableAllowance, input, false);
 
   const baseForBH = Math.min(gross, MAX_INSURANCE_BASE);
   const baseForBHTN = Math.min(gross, REGION_MIN_WAGE[input.region] * 20);
   
-  const employerInsurance = input.isProbation ? 0 : Math.round((0.175 * baseForBH) + (0.03 * baseForBH) + (input.isExpat ? 0 : 0.01 * baseForBHTN));
+  const employerInsurance = input.isProbation ? 0 : Math.round((EMPLOYER_INSURANCE_RATES.BHXH * baseForBH) + (EMPLOYER_INSURANCE_RATES.BHYT * baseForBH) + (input.isExpat ? 0 : EMPLOYER_INSURANCE_RATES.BHTN * baseForBHTN));
 
   return {
     gross: Math.round(gross),
+    taxableAllowance: input.taxableAllowance,
     net: Math.round(result2026.net),
     insurance: result2026.insurance,
     incomeBeforeTax: Math.round(result2026.incomeBeforeTax),
     taxableIncome: Math.round(result2026.taxableIncome),
     tax: Math.round(result2026.tax),
     taxBrackets: result2026.taxBrackets,
-    employerCost: Math.round(gross + employerInsurance),
+    employerCost: Math.round(gross + input.taxableAllowance + employerInsurance),
     comparisonWith2025: {
       net2025: Math.round(result2025.net),
       increase: Math.round(result2026.net - result2025.net),

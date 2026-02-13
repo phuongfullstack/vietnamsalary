@@ -14,6 +14,7 @@ export enum Region {
 export interface CalculationInput {
   mode: CalculationMode;
   salary: number;
+  taxableAllowance: number; // Phụ cấp chịu thuế - Không đóng BHXH
   dependents: number;
   region: Region;
   isExpat: boolean;
@@ -36,6 +37,7 @@ export interface TaxBracket {
 
 export interface CalculationResult {
   gross: number;
+  taxableAllowance: number;
   net: number;
   insurance: InsuranceBreakdown;
   taxableIncome: number; // Thu nhập tính thuế

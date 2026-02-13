@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tính Lương One-Page 2026</title>
+    <title>Vietnam Salary Pro 2026</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script>
         tailwind.config = {
@@ -14,13 +14,39 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
                     },
                     colors: {
-                        primary: '#2b6cee',
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        accent: '#2b6cee',
                         success: '#10b981',
                         warning: '#f59e0b',
                         danger: '#ef4444',
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    borderRadius: {
+                        '3xl': '1.5rem',
+                        '4xl': '2rem',
+                        '5xl': '2.5rem',
+                    },
+                    boxShadow: {
+                        'premium': '0 10px 40px -10px rgba(0, 0, 0, 0.05)',
+                        'glow': '0 0 30px rgba(43, 108, 238, 0.18)',
+                        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.02)',
                     }
                 }
             }
@@ -28,18 +54,67 @@
     </script>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f6f6f8;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
         .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
             background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
+            background-color: #e2e8f0;
             border-radius: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        
+        @media (max-width: 640px) {
+            .text-huge { font-size: 2.5rem; line-height: 1; }
+            .text-large { font-size: 1.25rem; line-height: 1.75rem; }
+        }
+        @media (min-width: 641px) {
+            .text-huge { font-size: 3.5rem; line-height: 1; }
+            .text-large { font-size: 1.5rem; line-height: 2rem; }
+        }
+
+        /* Print styles */
+        @media print {
+            aside, header, footer, .no-print {
+                display: none !important;
+            }
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+            }
+            .grid {
+                display: block !important;
+            }
+            section {
+                break-inside: avoid;
+                margin-bottom: 2rem;
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+        }
+        /* Hide scrollbars for screenshot */
+        .screenshot-mode .scrollbar-hide::-webkit-scrollbar {
+            display: none;
         }
     </style>
 <script type="importmap">
@@ -48,7 +123,8 @@
     "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "recharts": "https://esm.sh/recharts@^3.7.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
   }
 }
 </script>

@@ -1,14 +1,16 @@
 
-import React, { useState, useMemo, ChangeEvent } from 'react';
+import React, { useState, useMemo, ChangeEvent, useRef } from 'react';
 import { CalculationInput, CalculationMode, Region } from './types';
 import { performCalculation, formatCurrency, parseRawInput } from './services/calculator';
-import { REGION_MIN_WAGE, REGION_DETAILS, DEDUCTIONS, MAX_INSURANCE_BASE } from './constants';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip as RechartsTooltip, Cell as ReCell } from 'recharts';
+import { REGION_MIN_WAGE, REGION_DETAILS, DEDUCTIONS, MAX_INSURANCE_BASE, BASE_SALARY, EMPLOYEE_INSURANCE_RATES, EMPLOYER_INSURANCE_RATES } from './constants';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
   const [input, setInput] = useState<CalculationInput>({
     mode: CalculationMode.GROSS_TO_NET,
     salary: 35000000,
+    taxableAllowance: 0,
     dependents: 0,
     region: Region.I,
     isExpat: false,
@@ -16,19 +18,64 @@ const App: React.FC = () => {
   });
 
   const [salaryDisplay, setSalaryDisplay] = useState<string>(formatCurrency(35000000));
+  const [allowanceDisplay, setAllowanceDisplay] = useState<string>(formatCurrency(0));
   const [showRegionModal, setShowRegionModal] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const result = useMemo(() => performCalculation(input), [input]);
   const [expandedFormula, setExpandedFormula] = useState(true);
 
+  const insuranceBase = Math.min(result.gross, MAX_INSURANCE_BASE);
+
   const handleSalaryChange = (e: ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;
     const numericValue = parseRawInput(rawValue);
-    
     if (numericValue > 100000000000) return;
-
     setInput(prev => ({ ...prev, salary: numericValue }));
     setSalaryDisplay(numericValue === 0 ? '' : formatCurrency(numericValue));
+  };
+
+  const handleAllowanceChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value;
+    const numericValue = parseRawInput(rawValue);
+    if (numericValue > 100000000000) return;
+    setInput(prev => ({ ...prev, taxableAllowance: numericValue }));
+    setAllowanceDisplay(numericValue === 0 ? '' : formatCurrency(numericValue));
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleCaptureImage = async () => {
+    if (!resultsRef.current || isCapturing) return;
+    
+    setIsCapturing(true);
+    // Add a class for screenshot-specific styling
+    document.body.classList.add('screenshot-mode');
+
+    try {
+      const canvas = await html2canvas(resultsRef.current, {
+        scale: 2, // High resolution
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f8fafc',
+        windowWidth: 1200 // Ensure consistent width for the screenshot
+      });
+      
+      const link = document.createElement('a');
+      link.download = `Vietnam-Salary-${new Date().getTime()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Lỗi khi chụp ảnh:', error);
+      alert('Không thể chụp ảnh màn hình. Vui lòng thử lại.');
+    } finally {
+      setIsCapturing(false);
+      document.body.classList.remove('screenshot-mode');
+    }
   };
 
   const pieData = [
@@ -37,435 +84,381 @@ const App: React.FC = () => {
     { name: 'Thuế', value: result.tax, color: '#94a3b8' }
   ];
 
-  const barData = [
-    { year: '2025', value: result.comparisonWith2025.net2025, label: formatCurrency(result.comparisonWith2025.net2025) },
-    { year: '2026', value: result.net, label: formatCurrency(result.net) }
-  ];
-
-  const netRate = result.gross > 0 ? ((result.net / result.gross) * 100).toFixed(0) : "0";
+  const totalInputSalary = result.gross + result.taxableAllowance;
+  const netRate = totalInputSalary > 0 ? ((result.net / totalInputSalary) * 100).toFixed(1) : "0";
 
   return (
-    <div className="min-h-screen flex flex-col transition-all duration-300">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col font-sans bg-[#f8fafc]">
+      {/* Dynamic Background */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none opacity-40">
+        <div className="absolute top-[-5%] left-[-5%] w-[60%] h-[60%] bg-primary-100 rounded-full blur-[140px]"></div>
+        <div className="absolute bottom-[0%] right-[-5%] w-[45%] h-[45%] bg-success/10 rounded-full blur-[120px]"></div>
+      </div>
+
+      {/* Modern Header */}
+      <header className="glass sticky top-0 z-[60] border-b border-white/40 shadow-sm no-print">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-8 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <span className="material-icons">calculate</span>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-accent to-primary-700 flex items-center justify-center text-white shadow-glow">
+              <span className="material-icons text-xl sm:text-2xl">insights</span>
             </div>
             <div>
-              <h1 className="font-bold text-lg tracking-tight">Tính Lương One-Page 2026</h1>
-              <p className="text-xs text-slate-500 font-medium flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-success"></span>
-                Luật 109/2025/QH15 chính thức
+              <h1 className="font-extrabold text-base sm:text-2xl tracking-tighter text-slate-900 leading-none">Vietnam <span className="text-accent">Salary</span></h1>
+              <p className="hidden sm:flex text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] mt-1 items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
+                Luật Thuế 109/2025/QH15
               </p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-4">
-            <button className="text-sm font-medium text-slate-600 hover:text-primary transition-colors">Hướng dẫn</button>
-            <div className="w-px h-6 bg-slate-200"></div>
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 text-sm hover:bg-slate-50 transition-colors">
-              <span className="material-icons text-lg">language</span>
-              <span>Tiếng Việt</span>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handlePrint}
+              className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+              <span className="material-icons text-sm">print</span>
+              <span>IN</span>
+            </button>
+            <button 
+              onClick={handleCaptureImage}
+              disabled={isCapturing}
+              className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-slate-900 text-white text-[10px] sm:text-xs font-bold hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50">
+              <span className="material-icons text-sm sm:text-base">{isCapturing ? 'sync' : 'camera_alt'}</span>
+              <span>{isCapturing ? 'ĐANG CHỤP...' : 'CHỤP ẢNH'}</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="flex-grow p-4 sm:p-6 lg:p-8 max-w-[1440px] mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+      <main className="flex-grow px-4 py-6 sm:px-8 sm:py-10 max-w-[1400px] mx-auto w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-start">
           
-          {/* Input Section */}
-          <section className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col h-fit sticky top-24">
-            <div className="mb-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <span className="material-icons text-primary">tune</span>
-                Thông tin đầu vào
-              </h2>
-              <div className="bg-slate-100 p-1 rounded-lg flex mb-6">
-                <button 
-                  onClick={() => setInput(prev => ({ ...prev, mode: CalculationMode.GROSS_TO_NET }))}
-                  className={`flex-1 py-2 px-3 rounded text-sm font-semibold transition-all ${input.mode === CalculationMode.GROSS_TO_NET ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Gross → Net
-                </button>
-                <button 
-                  onClick={() => setInput(prev => ({ ...prev, mode: CalculationMode.NET_TO_GROSS }))}
-                  className={`flex-1 py-2 px-3 rounded text-sm font-medium transition-all ${input.mode === CalculationMode.NET_TO_GROSS ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Net → Gross
-                </button>
+          {/* COLUMN 1: CONFIGURATION */}
+          <aside className="lg:col-span-4 xl:col-span-3 order-1 animate-fade-in no-print">
+            <div className="bg-white rounded-3xl sm:rounded-4xl shadow-premium border border-slate-100 p-5 sm:p-8 lg:sticky lg:top-28">
+              <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                <div className="w-8 h-8 rounded-lg bg-accent/5 flex items-center justify-center">
+                  <span className="material-icons text-accent text-lg">settings_suggest</span>
+                </div>
+                <h2 className="text-base sm:text-lg font-extrabold text-slate-800 tracking-tight">Cấu hình lương</h2>
               </div>
-              
-              <div className="space-y-5">
+
+              <div className="space-y-6">
+                {/* Switcher */}
+                <div className="bg-slate-100 p-1 rounded-xl flex relative h-11 shadow-inner-soft">
+                  <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-all duration-300 ease-out ${input.mode === CalculationMode.NET_TO_GROSS ? 'translate-x-full' : 'translate-x-0'}`}></div>
+                  <button onClick={() => setInput(prev => ({ ...prev, mode: CalculationMode.GROSS_TO_NET }))}
+                    className={`flex-1 text-[10px] font-black transition-all relative z-10 ${input.mode === CalculationMode.GROSS_TO_NET ? 'text-accent' : 'text-slate-400'}`}>
+                    GROSS → NET
+                  </button>
+                  <button onClick={() => setInput(prev => ({ ...prev, mode: CalculationMode.NET_TO_GROSS }))}
+                    className={`flex-1 text-[10px] font-black transition-all relative z-10 ${input.mode === CalculationMode.NET_TO_GROSS ? 'text-accent' : 'text-slate-400'}`}>
+                    NET → GROSS
+                  </button>
+                </div>
+
+                {/* Main Input Field */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Lương tháng (VND)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                    {input.mode === CalculationMode.GROSS_TO_NET ? 'Lương Gross (Hợp đồng)' : 'Lương Net nhận về'}
+                  </label>
                   <div className="relative group">
-                    <input 
-                      type="text"
-                      inputMode="numeric"
-                      value={salaryDisplay}
-                      onChange={handleSalaryChange}
-                      placeholder="0"
-                      className="w-full pl-4 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary outline-none font-black text-xl text-slate-900 shadow-inner group-hover:bg-slate-100/50 transition-all" 
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-black select-none text-lg">₫</span>
+                    <input type="text" inputMode="numeric" value={salaryDisplay} onChange={handleSalaryChange}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/5 outline-none font-extrabold text-xl sm:text-2xl text-slate-900 transition-all shadow-inner-soft" />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 font-black text-lg">₫</span>
                   </div>
                 </div>
 
+                {/* Taxable Allowance Field */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Người phụ thuộc</label>
-                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1 overflow-hidden">
-                    <button 
-                      onClick={() => setInput(prev => ({ ...prev, dependents: Math.max(0, prev.dependents - 1) }))}
-                      className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-primary hover:bg-white rounded-lg transition-all"
-                    >
-                      <span className="material-icons">remove</span>
-                    </button>
-                    <input 
-                      className="flex-1 text-center bg-transparent border-none focus:ring-0 font-black text-xl text-slate-900" 
-                      readOnly 
-                      value={input.dependents} 
-                    />
-                    <button 
-                      onClick={() => setInput(prev => ({ ...prev, dependents: prev.dependents + 1 }))}
-                      className="w-11 h-11 flex items-center justify-center text-slate-500 hover:text-primary hover:bg-white rounded-lg transition-all"
-                    >
-                      <span className="material-icons">add</span>
-                    </button>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Phụ cấp chịu thuế (Ko đóng BH)</label>
+                  <div className="relative group">
+                    <input type="text" inputMode="numeric" value={allowanceDisplay} onChange={handleAllowanceChange}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/5 outline-none font-bold text-lg text-slate-800 transition-all shadow-inner-soft" />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 font-black text-lg">₫</span>
                   </div>
                 </div>
 
+                {/* Subject Selection */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium text-slate-700">Vùng lương tối thiểu</label>
-                    <button 
-                      onClick={() => setShowRegionModal(true)}
-                      className="text-[10px] font-bold text-primary hover:underline uppercase tracking-widest flex items-center gap-1"
-                    >
-                      <span className="material-icons text-[12px]">search</span>
-                      Tra cứu vùng
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[Region.I, Region.II, Region.III, Region.IV].map((r) => (
-                      <button
-                        key={r}
-                        onClick={() => setInput(prev => ({ ...prev, region: r }))}
-                        className={`flex items-center justify-center py-2.5 rounded-xl border text-sm font-black transition-all ${input.region === r ? 'bg-primary border-primary text-white shadow-lg shadow-primary/30' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300'}`}
-                      >
-                        {r}
+                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Đối tượng</label>
+                   <div className="space-y-2">
+                      <button onClick={() => setInput(prev => ({ ...prev, isExpat: false, isProbation: false }))}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${!input.isExpat && !input.isProbation ? 'border-accent bg-accent/5' : 'border-slate-50 hover:border-slate-200'}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${!input.isExpat && !input.isProbation ? 'bg-accent text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <span className="material-icons text-sm">person</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Lao động Việt Nam</span>
                       </button>
-                    ))}
-                  </div>
-                  <div className="mt-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] mb-1">Căn cứ 2026 (Nghị định 293)</p>
-                    <p className="text-sm font-black text-slate-900">{formatCurrency(REGION_MIN_WAGE[input.region])} ₫</p>
-                    <p className="text-[10px] text-slate-500 mt-1 leading-relaxed font-medium italic">
-                      {REGION_DETAILS[input.region].locations.substring(0, 100)}...
-                    </p>
-                  </div>
+                      <button onClick={() => setInput(prev => ({ ...prev, isExpat: true, isProbation: false }))}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${input.isExpat ? 'border-accent bg-accent/5' : 'border-slate-50 hover:border-slate-200'}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${input.isExpat ? 'bg-accent text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <span className="material-icons text-sm">public</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Người nước ngoài</span>
+                      </button>
+                      <button onClick={() => setInput(prev => ({ ...prev, isProbation: true, isExpat: false }))}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${input.isProbation ? 'border-warning bg-warning/5' : 'border-slate-50 hover:border-slate-200'}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${input.isProbation ? 'bg-warning text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <span className="material-icons text-sm">timer</span>
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Thử việc (Thuế 10%)</span>
+                      </button>
+                   </div>
                 </div>
 
-                <div className="space-y-4 pt-2">
-                  <label className="flex items-center justify-between cursor-pointer group">
-                    <span className="text-sm font-semibold text-slate-700">Người nước ngoài (Expat)</span>
-                    <div className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={input.isExpat}
-                        onChange={(e) => setInput(prev => ({ ...prev, isExpat: e.target.checked }))}
-                      />
-                      <div className="w-12 h-6.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Phụ thuộc</label>
+                    <div className="flex items-center bg-slate-50 border-2 border-slate-100 rounded-xl p-1">
+                      <button onClick={() => setInput(prev => ({ ...prev, dependents: Math.max(0, prev.dependents - 1) }))} className="w-8 h-8 flex items-center justify-center bg-white text-slate-400 rounded-lg"><span className="material-icons text-sm">remove</span></button>
+                      <input className="flex-1 text-center bg-transparent border-none focus:ring-0 font-extrabold text-sm text-slate-900" readOnly value={input.dependents} />
+                      <button onClick={() => setInput(prev => ({ ...prev, dependents: prev.dependents + 1 }))} className="w-8 h-8 flex items-center justify-center bg-white text-slate-400 rounded-lg"><span className="material-icons text-sm">add</span></button>
                     </div>
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer group">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-slate-700">Thử việc/Vãng lai</span>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Thuế khoán 10%</span>
-                    </div>
-                    <div className="relative inline-flex items-center cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={input.isProbation}
-                        onChange={(e) => setInput(prev => ({ ...prev, isProbation: e.target.checked }))}
-                      />
-                      <div className="w-12 h-6.5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-warning shadow-inner"></div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Result Section */}
-          <section className="lg:col-span-4 flex flex-col gap-6">
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col items-center justify-start relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-success to-primary"></div>
-              <div className="w-full flex justify-between items-center mb-6">
-                <h3 className="text-xs uppercase tracking-[0.2em] font-black text-slate-400">Lương Thực Nhận (Net)</h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-slate-400">LUẬT 2026</span>
-                  <span className="w-2.5 h-2.5 rounded-full bg-success animate-pulse shadow-sm shadow-success/50"></span>
-                </div>
-              </div>
-
-              <div className="text-5xl font-black text-primary mb-2 tracking-tight text-center break-all selection:bg-primary/20">{formatCurrency(result.net)}</div>
-              <div className="text-[10px] text-slate-400 font-black mb-8 text-center tracking-[0.3em] uppercase">VND / Tháng</div>
-
-              {/* Increase Banner */}
-              <div className="w-full bg-slate-50 rounded-2xl p-5 mb-8 relative group transition-all duration-300 border border-slate-100 shadow-inner">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-                  <div className="bg-emerald-500 text-white px-4 py-2 rounded-full shadow-xl shadow-emerald-500/30 flex items-center gap-2 whitespace-nowrap border-2 border-white">
-                    <span className="material-icons text-lg">auto_awesome</span>
-                    <span className="text-[11px] font-black uppercase tracking-widest">Tăng thêm: +{formatCurrency(result.comparisonWith2025.increase)} ₫</span>
                   </div>
-                </div>
-
-                <div className="h-40 w-full pt-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                      <XAxis dataKey="year" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 900 }} />
-                      <RechartsTooltip 
-                        cursor={{fill: 'rgba(255,255,255,0.5)'}}
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-slate-900/95 backdrop-blur-sm text-white text-[11px] py-2 px-4 rounded-xl shadow-2xl font-black border border-white/10">
-                                {formatCurrency(payload[0].value as number)} ₫
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={48}>
-                        {barData.map((entry, index) => (
-                          <ReCell key={`cell-${index}`} fill={index === 1 ? '#10b981' : '#cbd5e1'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="flex justify-around text-[11px] font-black text-slate-400 mt-3 uppercase tracking-tighter">
-                  <div className="flex flex-col items-center">
-                    <span>2025</span>
-                    <span className="text-slate-500">{(result.comparisonWith2025.net2025 / 1000000).toFixed(1)}M</span>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <span className="text-slate-900 font-black">2026</span>
-                    <span className="text-emerald-600">{(result.net / 1000000).toFixed(1)}M <span className="text-success ml-1">+{result.comparisonWith2025.increasePercentage.toFixed(1)}%</span></span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Donut Chart */}
-              <div className="relative w-52 h-52 mb-8 mt-auto group transition-transform duration-500 hover:scale-105">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={65}
-                      outerRadius={85}
-                      paddingAngle={10}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Vùng Lương</label>
+                    <div className="grid grid-cols-4 gap-1">
+                      {[Region.I, Region.II, Region.III, Region.IV].map((r) => (
+                        <button key={r} onClick={() => setInput(prev => ({ ...prev, region: r }))}
+                          className={`py-2 rounded-lg border-2 text-[10px] font-black transition-all ${input.region === r ? 'bg-accent border-accent text-white' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
+                          {r}
+                        </button>
                       ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Tỷ lệ Net</span>
-                  <span className="text-3xl font-black text-primary tracking-tighter">{netRate}%</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-50 py-2 px-6 rounded-full border border-slate-100">
-                {pieData.map((item) => (
-                  <div key={item.name} className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-md shadow-sm" style={{ backgroundColor: item.color }}></span>
-                    {item.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Tax Bracket Progress */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-              <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center justify-between">
-                <span>Biểu thuế lũy tiến 2026</span>
-                <span className="text-[10px] font-black bg-primary/10 text-primary px-3 py-1 rounded-full uppercase tracking-widest border border-primary/20">
-                  {input.isProbation ? 'THUẾ KHOÁN 10%' : `BẬC ${result.taxBrackets.length > 0 ? result.taxBrackets.length : 0} / 5`}
-                </span>
-              </h3>
-              <div className="relative pt-6 pb-2 px-2">
-                <div className="absolute top-[35px] left-0 w-full h-2 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                  <div 
-                    className="h-full bg-gradient-to-r from-success via-primary to-primary transition-all duration-1000 ease-out"
-                    style={{ width: input.isProbation ? '100%' : `${Math.min(100, (result.taxableIncome / 100000000) * 100)}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between relative">
-                  {[5, 10, 20, 30, 35].map((rate, i) => (
-                    <div key={rate} className="flex flex-col items-center gap-3 group cursor-pointer">
-                      <div className={`w-5 h-5 rounded-full border-2 border-white shadow-xl z-10 transition-all duration-500 ${result.taxBrackets.some(b => b.rate === rate / 100) || (input.isProbation && rate === 10) ? 'bg-primary scale-125 ring-8 ring-primary/5' : 'bg-slate-200 group-hover:bg-slate-300'}`}></div>
-                      <span className={`text-[11px] font-black transition-colors ${result.taxBrackets.some(b => b.rate === rate / 100) || (input.isProbation && rate === 10) ? 'text-primary' : 'text-slate-400'}`}>{rate}%</span>
                     </div>
-                  ))}
+                  </div>
+                </div>
+
+                {/* Insurance Rates Info Table */}
+                <div className="pt-4 mt-4 border-t border-slate-100">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Tỉ lệ đóng bảo hiểm (%)</label>
+                  <div className="bg-slate-50 rounded-xl overflow-hidden border border-slate-100">
+                    <table className="w-full text-[10px]">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          <th className="px-2 py-1.5 text-left font-black text-slate-500 uppercase">Loại</th>
+                          <th className="px-2 py-1.5 text-right font-black text-slate-500 uppercase">NLĐ</th>
+                          <th className="px-2 py-1.5 text-right font-black text-slate-500 uppercase">DN</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        <tr><td className="px-2 py-1.5 text-slate-600 font-bold">BHXH</td><td className="px-2 py-1.5 text-right font-black">{(EMPLOYEE_INSURANCE_RATES.BHXH * 100).toFixed(1)}%</td><td className="px-2 py-1.5 text-right font-black">{(EMPLOYER_INSURANCE_RATES.BHXH * 100).toFixed(1)}%</td></tr>
+                        <tr><td className="px-2 py-1.5 text-slate-600 font-bold">BHYT</td><td className="px-2 py-1.5 text-right font-black">{(EMPLOYEE_INSURANCE_RATES.BHYT * 100).toFixed(1)}%</td><td className="px-2 py-1.5 text-right font-black">{(EMPLOYER_INSURANCE_RATES.BHYT * 100).toFixed(1)}%</td></tr>
+                        <tr><td className="px-2 py-1.5 text-slate-600 font-bold">BHTN</td><td className="px-2 py-1.5 text-right font-black">{(EMPLOYEE_INSURANCE_RATES.BHTN * 100).toFixed(1)}%</td><td className="px-2 py-1.5 text-right font-black">{(EMPLOYER_INSURANCE_RATES.BHTN * 100).toFixed(1)}%</td></tr>
+                        <tr className="bg-slate-100/50"><td className="px-2 py-1.5 text-slate-900 font-black">Tổng</td><td className="px-2 py-1.5 text-right font-black text-success">{(EMPLOYEE_INSURANCE_RATES.TOTAL * 100).toFixed(1)}%</td><td className="px-2 py-1.5 text-right font-black text-accent">{(EMPLOYER_INSURANCE_RATES.TOTAL * 100).toFixed(1)}%</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-6 text-center font-black uppercase tracking-[0.2em] bg-slate-50 py-2 rounded-xl">
-                {result.taxableIncome > 0 
-                  ? `Thu nhập tính thuế: ${formatCurrency(result.taxableIncome)} ₫`
-                  : input.isProbation ? 'KHẤU TRỪ TẠI NGUỒN (THỬ VIỆC)' : 'CHƯA ĐẠT MỨC CHỊU THUẾ'}
-              </p>
             </div>
-          </section>
+          </aside>
 
-          {/* Details Section */}
-          <section className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col h-full overflow-hidden">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-lg font-black flex items-center gap-2 text-slate-800 uppercase tracking-tight">
-                <span className="material-icons text-primary">analytics</span>
-                Phân tích lương chi tiết 2026
-              </h2>
-              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <span className="material-icons text-sm">schedule</span>
-                Áp dụng 01/01/2026
+          {/* WRAPPER FOR RESULTS & BREAKDOWN - CAPTURED AREA */}
+          <div ref={resultsRef} className="lg:col-span-8 xl:col-span-9 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+            
+            {/* COLUMN 2: KEY RESULTS */}
+            <section className="animate-fade-in w-full">
+              <div className="flex flex-col gap-6">
+                <div className="bg-white rounded-3xl sm:rounded-4xl shadow-premium border border-slate-100 p-6 sm:p-10 relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1.5 bg-accent"></div>
+                  
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex flex-col">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Thực nhận hàng tháng</h3>
+                      <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-success/10 text-success rounded-full text-[9px] font-black tracking-widest">
+                        CẬP NHẬT 2026
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-accent group-hover:text-white transition-all duration-500">
+                      <span className="material-icons text-xl sm:text-2xl">payments</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center mb-8">
+                    <div className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tightest mb-1 break-all">{formatCurrency(result.net)}</div>
+                    <div className="text-[9px] text-slate-300 font-bold uppercase tracking-[0.3em]">VND / THÁNG</div>
+                  </div>
+
+                  {/* Comparison Stats */}
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-8">
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                      <span className="text-[8px] font-black text-slate-400 uppercase block mb-1">Cơ chế 2025</span>
+                      <span className="text-xs sm:text-sm font-extrabold text-slate-600 truncate block">{formatCurrency(result.comparisonWith2025.net2025)}</span>
+                    </div>
+                    <div className="bg-success/5 rounded-2xl p-4 border border-success/10">
+                      <span className="text-[8px] font-black text-success/70 uppercase block mb-1">Chênh lệch</span>
+                      <span className="text-xs sm:text-sm font-extrabold text-success truncate block">+{formatCurrency(result.comparisonWith2025.increase)}</span>
+                    </div>
+                  </div>
+
+                  {/* Visual Analytics */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-full h-40 sm:h-52 relative mb-4">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie 
+                            data={pieData} 
+                            cx="50%" cy="50%" innerRadius="60%" outerRadius="85%" 
+                            paddingAngle={5} dataKey="value" stroke="none"
+                          >
+                            {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-xl sm:text-3xl font-black text-slate-900 leading-none">{netRate}%</span>
+                        <span className="text-[8px] text-slate-400 font-bold uppercase mt-1">Lương thực</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-4">
+                      {pieData.map(item => (
+                        <div key={item.name} className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }}></span>
+                          <span className="text-[9px] font-black text-slate-500 uppercase">{item.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Card */}
+                <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-xl overflow-hidden relative">
+                   <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-accent/20 rounded-full blur-[50px]"></div>
+                   <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4 border-b border-white/10 pb-2">Tham số kỹ thuật 2026</h4>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <p className="text-[8px] text-slate-400 uppercase font-black mb-1">Lương cơ sở</p>
+                       <p className="text-sm font-black">{formatCurrency(BASE_SALARY)} ₫</p>
+                     </div>
+                     <div className="text-right">
+                       <p className="text-[8px] text-slate-400 uppercase font-black mb-1">Vùng {input.region}</p>
+                       <p className="text-sm font-black">{formatCurrency(REGION_MIN_WAGE[input.region])} ₫</p>
+                     </div>
+                   </div>
+                </div>
               </div>
-            </div>
+            </section>
 
-            <div className="overflow-x-auto custom-scrollbar mb-8 flex-grow">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    <th className="text-left pb-4 font-black text-slate-400 uppercase tracking-[0.2em] text-[10px]">Khoản mục</th>
-                    <th className="text-right pb-4 font-black text-slate-400 uppercase tracking-[0.2em] text-[10px]">Cơ sở tính</th>
-                    <th className="text-right pb-4 font-black text-slate-900 uppercase tracking-[0.2em] text-[10px]">Số tiền (₫)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  <tr className="group hover:bg-slate-50 transition-colors">
-                    <td className="py-5 font-black text-slate-800 text-base">Lương Gross</td>
-                    <td className="text-right py-5 text-slate-400 font-bold uppercase text-[10px]">Hợp đồng</td>
-                    <td className="text-right py-5 font-black text-slate-900 text-lg">{formatCurrency(result.gross)}</td>
-                  </tr>
-                  {!input.isProbation && (
-                    <>
-                      <tr>
-                        <td className="py-2 pt-8 text-[11px] font-black text-primary uppercase tracking-[0.3em] flex items-center gap-2" colSpan={3}>
-                          <span className="w-4 h-0.5 bg-primary/20"></span>
-                          Bảo hiểm trích đóng
-                        </td>
+            {/* COLUMN 3: BREAKDOWN TABLE */}
+            <section className="animate-fade-in w-full">
+              <div className="bg-white rounded-3xl sm:rounded-4xl shadow-premium border border-slate-100 p-5 sm:p-8 flex flex-col h-full overflow-hidden">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">Chi tiết diễn giải</h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Khai báo thu nhập & khấu trừ</p>
+                  </div>
+                  <div className="flex gap-2 no-print">
+                    <button onClick={handlePrint} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:text-slate-600"><span className="material-icons text-sm">print</span></button>
+                    <button onClick={handleCaptureImage} className="p-2 bg-accent/10 text-accent rounded-lg hover:bg-accent/20"><span className="material-icons text-sm">camera_alt</span></button>
+                  </div>
+                </div>
+
+                {/* Optimized Table - Fix overflow */}
+                <div className="overflow-x-auto -mx-5 sm:mx-0 px-5 sm:px-0 scrollbar-hide">
+                  <table className="w-full text-xs border-collapse min-w-[320px]">
+                    <thead>
+                      <tr className="border-b-2 border-slate-50">
+                        <th className="text-left pb-3 font-black text-slate-300 uppercase text-[9px]">Danh mục</th>
+                        <th className="text-right pb-3 font-black text-slate-300 uppercase text-[9px]">Tỉ lệ</th>
+                        <th className="text-right pb-3 font-black text-slate-900 uppercase text-[9px]">Số tiền</th>
                       </tr>
-                      <tr className="group hover:bg-slate-50 transition-colors">
-                        <td className="py-4 pl-4 text-slate-700 border-l-4 border-success/40 font-bold">BH Xã hội</td>
-                        <td className="text-right py-4 text-[10px] text-slate-400 font-black uppercase">8% (Max {formatCurrency(MAX_INSURANCE_BASE)})</td>
-                        <td className="text-right py-4 font-bold text-slate-800">{formatCurrency(result.insurance.bhxh)}</td>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      <tr className="group">
+                        <td className="py-4 font-extrabold text-slate-900 text-sm">Lương Gross</td>
+                        <td className="text-right py-4 text-[9px] text-slate-300">HĐLĐ</td>
+                        <td className="text-right py-4 font-black text-slate-900 text-sm">{formatCurrency(result.gross)}</td>
                       </tr>
-                      <tr className="group hover:bg-slate-50 transition-colors">
-                        <td className="py-4 pl-4 text-slate-700 border-l-4 border-success/40 font-bold">BH Y tế</td>
-                        <td className="text-right py-4 text-[10px] text-slate-400 font-black uppercase">1.5% (Max {formatCurrency(MAX_INSURANCE_BASE)})</td>
-                        <td className="text-right py-4 font-bold text-slate-800">{formatCurrency(result.insurance.bhyt)}</td>
-                      </tr>
-                      {!input.isExpat && (
-                        <tr className="group hover:bg-slate-50 transition-colors">
-                          <td className="py-4 pl-4 text-slate-700 border-l-4 border-success/40 font-bold">BH Thất nghiệp</td>
-                          <td className="text-right py-4 text-[10px] text-slate-400 font-black uppercase">1% (Vùng {input.region})</td>
-                          <td className="text-right py-4 font-bold text-slate-800">{formatCurrency(result.insurance.bhtn)}</td>
+                      {result.taxableAllowance > 0 && (
+                        <tr className="bg-warning/5">
+                          <td className="py-3 px-2 font-bold text-slate-700">Phụ cấp (Tax)</td>
+                          <td className="text-right py-3 text-[9px] text-slate-400">Ko BH</td>
+                          <td className="text-right py-3 font-black text-slate-800">{formatCurrency(result.taxableAllowance)}</td>
                         </tr>
                       )}
-                    </>
-                  )}
-                  <tr>
-                    <td className="py-2 pt-8 text-[11px] font-black text-warning uppercase tracking-[0.3em] flex items-center gap-2" colSpan={3}>
-                      <span className="w-4 h-0.5 bg-warning/20"></span>
-                      Các khoản giảm trừ
-                    </td>
-                  </tr>
-                  {!input.isProbation && (
-                    <>
-                      <tr className="group hover:bg-slate-50 transition-colors">
-                        <td className="py-4 text-slate-700 font-bold">Giảm trừ bản thân</td>
-                        <td className="text-right py-4 text-[10px] text-slate-400 font-black uppercase">Mức mới 2026</td>
-                        <td className="text-right py-4 font-black text-success">-{formatCurrency(DEDUCTIONS.PERSONAL_2026)}</td>
+                      
+                      {!input.isProbation ? (
+                        <>
+                          <tr className="bg-slate-50/50"><td colSpan={3} className="py-1 px-2 text-[8px] font-black text-primary uppercase">Bảo hiểm nhân viên</td></tr>
+                          <tr className="text-[11px]"><td className="py-3 px-2 text-slate-600">BH Xã hội ({(EMPLOYEE_INSURANCE_RATES.BHXH * 100).toFixed(0)}%)</td><td className="text-right py-3 text-[9px] text-slate-300">{formatCurrency(insuranceBase)}</td><td className="text-right py-3 font-bold text-slate-700">{formatCurrency(result.insurance.bhxh)}</td></tr>
+                          <tr className="text-[11px]"><td className="py-3 px-2 text-slate-600">BH Y tế ({(EMPLOYEE_INSURANCE_RATES.BHYT * 100).toFixed(1)}%)</td><td className="text-right py-3 text-[9px] text-slate-300">Max</td><td className="text-right py-3 font-bold text-slate-700">{formatCurrency(result.insurance.bhyt)}</td></tr>
+                          {!input.isExpat && <tr className="text-[11px]"><td className="py-3 px-2 text-slate-600">BH Thất nghiệp ({(EMPLOYEE_INSURANCE_RATES.BHTN * 100).toFixed(0)}%)</td><td className="text-right py-3 text-[9px] text-slate-300">Vùng {input.region}</td><td className="text-right py-3 font-bold text-slate-700">{formatCurrency(result.insurance.bhtn)}</td></tr>}
+                          
+                          <tr className="bg-slate-50/50"><td colSpan={3} className="py-1 px-2 text-[8px] font-black text-warning uppercase">Giảm trừ gia cảnh</td></tr>
+                          <tr className="text-[11px]"><td className="py-3 px-2 text-slate-600">Bản thân</td><td className="text-right py-3 text-[9px] text-slate-300">Nghị quyết 110</td><td className="text-right py-3 font-black text-success">-{formatCurrency(DEDUCTIONS.PERSONAL_2026)}</td></tr>
+                          {input.dependents > 0 && <tr className="text-[11px]"><td className="py-3 px-2 text-slate-600">NPT ({input.dependents})</td><td className="text-right py-3 text-[9px] text-slate-300">x {formatCurrency(DEDUCTIONS.DEPENDENT_2026)}</td><td className="text-right py-3 font-black text-success">-{formatCurrency(input.dependents * DEDUCTIONS.DEPENDENT_2026)}</td></tr>}
+                        </>
+                      ) : (
+                        <tr><td colSpan={3} className="py-10 text-center text-slate-300 font-bold uppercase text-[10px] italic">Chế độ thử việc 10% thuế khoán</td></tr>
+                      )}
+                      
+                      <tr className="bg-slate-50 border-t-2 border-slate-100">
+                        <td className="py-4 px-2 font-black text-slate-900">THU NHẬP TÍNH THUẾ</td>
+                        <td className="text-right py-4"></td>
+                        <td className="text-right py-4 font-black text-slate-900 text-sm">{formatCurrency(result.taxableIncome)}</td>
                       </tr>
-                      <tr className="group hover:bg-slate-50 transition-colors">
-                        <td className="py-4 text-slate-700 font-bold">Giảm trừ phụ thuộc</td>
-                        <td className="text-right py-4 text-[10px] text-slate-400 font-black uppercase">{input.dependents} Người</td>
-                        <td className="text-right py-4 font-black text-success">-{formatCurrency(input.dependents * DEDUCTIONS.DEPENDENT_2026)}</td>
+                      
+                      <tr className="bg-accent/5 border-t-2 border-accent">
+                        <td className="py-5 px-2 text-accent font-black">THUẾ TNCN NỘP</td>
+                        <td className="text-right py-5 text-[9px] text-accent/50 font-bold uppercase">{input.isProbation ? '10% cố định' : `Bậc ${result.taxBrackets.length}`}</td>
+                        <td className="text-right py-5 font-black text-accent text-lg">{formatCurrency(result.tax)}</td>
                       </tr>
-                    </>
-                  )}
-                  <tr className="bg-slate-50/50 font-black border-t border-slate-100">
-                    <td className="py-5 text-slate-900 font-black pl-2">Thu nhập tính thuế</td>
-                    <td className="text-right py-5 italic text-slate-400 text-xs font-medium">Đối tượng nộp thuế</td>
-                    <td className="text-right py-5 font-black text-slate-900 text-lg pr-2">{formatCurrency(result.taxableIncome)}</td>
-                  </tr>
-                  <tr className="bg-primary/5 font-black border-t-2 border-primary/30">
-                    <td className="py-6 text-primary font-black uppercase tracking-widest pl-3 text-base">Thuế TNCN nộp</td>
-                    <td className="text-right py-6 text-[11px] text-primary font-black uppercase tracking-tighter">
-                      {input.isProbation ? 'KHOÁN 10% (THỬ VIỆC)' : `LŨY TIẾN BẬC ${result.taxBrackets.length}`}
-                    </td>
-                    <td className="text-right py-6 text-primary font-black text-2xl pr-3">{formatCurrency(result.tax)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div className="border border-slate-200 rounded-2xl overflow-hidden mb-8 shadow-sm transition-all duration-300 hover:shadow-md">
-              <button 
-                onClick={() => setExpandedFormula(!expandedFormula)}
-                className="w-full flex items-center justify-between p-5 bg-slate-50 text-xs font-black text-slate-600 uppercase tracking-[0.2em] hover:bg-slate-100 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-icons text-sm">history_edu</span>
-                  Chi tiết 5 bậc thuế Luật 109
+                    </tbody>
+                  </table>
                 </div>
-                <span className="material-icons text-slate-400 transition-transform duration-500" style={{ transform: expandedFormula ? 'rotate(180deg)' : 'rotate(0)' }}>expand_more</span>
-              </button>
-              {expandedFormula && (
-                <div className="p-5 bg-white text-[11px] space-y-4 border-t border-slate-100 animate-fadeIn">
-                  {result.taxBrackets.length === 0 ? (
-                    <div className="text-center py-6 text-slate-400 font-bold uppercase tracking-widest">Chưa phát sinh thuế TNCN</div>
-                  ) : (
-                    result.taxBrackets.map((bracket, i) => (
-                      <div key={i} className="flex justify-between items-center group">
-                        <div className="flex flex-col">
-                          <span className="text-slate-400 font-black uppercase tracking-tighter group-hover:text-primary transition-colors">{bracket.label}</span>
-                          <span className="text-[9px] text-slate-300 font-bold">Thuế suất {(bracket.rate * 100).toFixed(0)}%</span>
-                        </div>
-                        <span className="font-black text-slate-800 text-sm tracking-tight">{formatCurrency(bracket.amount)} ₫</span>
-                      </div>
-                    ))
-                  )}
-                  <div className="flex justify-between border-t border-dashed border-slate-200 pt-4 mt-2 font-black">
-                    <span className="text-slate-900 uppercase tracking-widest text-xs">Tổng số thuế</span>
-                    <span className="text-primary text-base underline decoration-primary/30 underline-offset-4">{formatCurrency(result.tax)} ₫</span>
+
+                <div className="mt-6 p-4 rounded-2xl bg-slate-900 text-white flex justify-between items-center">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] text-slate-500 uppercase font-black mb-1">Employer Cost (DN Đóng {(EMPLOYER_INSURANCE_RATES.TOTAL * 100).toFixed(1)}% BH)</span>
+                    <span className="text-[10px] font-bold text-accent">Tổng chi phí DN chi trả</span>
                   </div>
+                  <span className="text-base sm:text-lg font-black">{formatCurrency(result.employerCost)} ₫</span>
                 </div>
-              )}
-            </div>
-
-            <div className="mt-auto pt-6 border-t border-slate-100">
-              <div className="flex items-center justify-between text-[11px] text-slate-400 font-black uppercase tracking-[0.3em] mb-4">
-                <span>Chi phí thực của DN (Cost)</span>
-                <span className="font-black text-slate-900 text-base tracking-normal bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100">{formatCurrency(result.employerCost)} ₫</span>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       </main>
 
-      {/* Region Lookup Modal */}
+      {/* FOOTER */}
+      <footer className="bg-white border-t border-slate-100 py-10 no-print">
+        <div className="max-w-[1400px] mx-auto px-6 flex flex-col items-center gap-6">
+          <div className="flex flex-wrap justify-center gap-4">
+             <button 
+                onClick={handleCaptureImage}
+                disabled={isCapturing}
+                className="px-8 py-4 rounded-2xl bg-accent hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest shadow-lg transition-all active:scale-95 disabled:opacity-50">
+                {isCapturing ? 'ĐANG CHỤP...' : 'LƯU ẢNH KẾT QUẢ'}
+             </button>
+          </div>
+          <p className="text-xs text-slate-400 font-medium">© 2026 Vietnam Salary - Hệ thống tính toán tuân thủ Nghị định 293/2025/NĐ-CP</p>
+        </div>
+      </footer>
+
+      {/* MODAL: Region Lookup */}
       {showRegionModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm no-print">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-huge overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-900 uppercase">Chọn vùng 2026</h2>
+              <button onClick={() => setShowRegionModal(false)} className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center"><span className="material-icons text-base">close</span></button>
+            </div>
+            <div className="p-4 overflow-y-auto space-y-3">
+              {[Region.I, Region.II, Region.III, Region.IV].map((r) => (
+                <button key={r} onClick={() => { setInput(prev => ({ ...prev, region: r })); setShowRegionModal(false); }}
+                  className={`w-full text-left p-4 rounded-2xl border-2 transition-all flex justify-between items-center ${input.region === r ? 'border-accent bg-accent/5' : 'border-slate-50 bg-white'}`}>
+                  <div>
+                    <span className="text-xs font-black text-slate-900 uppercase block">{REGION_DETAILS[r].name}</span>
+                    <span className="text-[10px] text-slate-400 font-medium line-clamp-1">{REGION_DETAILS[r].locations}</span>
+                  </div>
+                  <span className="text-sm font-black text-accent">{formatCurrency(REGION_DETAILS[r].wage)} ₫</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
