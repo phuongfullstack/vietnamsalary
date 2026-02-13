@@ -12,33 +12,61 @@ export const REGION_DETAILS = {
   [Region.I]: {
     name: 'Vùng I',
     wage: 5310000,
-    locations: 'Hà Nội, TP. HCM (Quận nội thành), Hải Phòng, Đồng Nai, Bình Dương, Bà Rịa - Vũng Tàu (TP. Vũng Tàu, Phú Mỹ).',
-    description: 'Khu vực đô thị đặc biệt và các trung tâm công nghiệp lớn nhất.'
+    locations: 'Hà Nội, TP. HCM (Quận nội thành), Hải Phòng, Đồng Nai, Bình Dương, Bà Rịa - Vũng Tàu (Vũng Tàu, Phú Mỹ).',
+    details: [
+      'TP. Hà Nội: Các quận và các huyện Gia Lâm, Đông Anh, Sóc Sơn, Thanh Trì, Thường Tín, Hoài Đức, Thạch Thất, Quốc Oai, Thanh Oai, Mê Linh, Chương Mỹ và TP. Sơn Tây.',
+      'TP. Hồ Chí Minh: Các quận, TP. Thủ Đức và các huyện Củ Chi, Hóc Môn, Bình Chánh, Nhà Bè.',
+      'TP. Hải Phòng: Các quận và các huyện Thủy Nguyên, An Dương, An Lão, Vĩnh Bảo, Tiên Lãng, Cát Hải, Kiến Thụy.',
+      'Tỉnh Đồng Nai: TP. Biên Hòa, Long Khánh và các huyện Nhơn Trạch, Long Thành, Vĩnh Cửu, Trảng Bom, Xuân Lộc.',
+      'Tỉnh Bình Dương: TP. Thủ Dầu Một, Thuận An, Dĩ An, Tân Uyên, Bến Cát và các huyện Bắc Tân Uyên, Dầu Tiếng, Phú Giáo, Bàu Bàng.',
+      'Tỉnh Bà Rịa - Vũng Tàu: TP. Vũng Tàu, Phú Mỹ.'
+    ]
   },
   [Region.II]: {
     name: 'Vùng II',
     wage: 4730000,
-    locations: 'Hà Nội, TP. HCM (Các huyện ngoại thành); Đà Nẵng, Cần Thơ, Nha Trang, Bắc Ninh, Thái Nguyên (Các thành phố trực thuộc).',
-    description: 'Các thành phố trực thuộc trung ương còn lại và các đô thị loại I.'
+    locations: 'Hà Nội & HCM (Huyện còn lại); Đà Nẵng, Cần Thơ, Nha Trang, Đà Lạt, Phan Thiết...',
+    details: [
+      'TP. Hà Nội: Các huyện còn lại (Ba Vì, Mỹ Đức, Phú Xuyên, Phúc Thọ, Ứng Hòa).',
+      'TP. Hồ Chí Minh: Huyện Cần Giờ.',
+      'TP. Đà Nẵng: Các quận, huyện.',
+      'TP. Cần Thơ: Các quận.',
+      'Tỉnh Bà Rịa - Vũng Tàu: TP. Bà Rịa.',
+      'Tỉnh Khánh Hòa: TP. Nha Trang, Cam Ranh.',
+      'Tỉnh Lâm Đồng: TP. Đà Lạt, Bảo Lộc.',
+      'Tỉnh Bình Thuận: TP. Phan Thiết.',
+      'Tỉnh Thái Nguyên: TP. Thái Nguyên, Sông Công, Phổ Yên.',
+      'Tỉnh Bắc Ninh: TP. Bắc Ninh, Từ Sơn và các huyện Quế Võ, Tiên Du, Yên Phong, Thuận Thành, Gia Bình, Lương Tài.',
+      'Tỉnh Quảng Ninh: TP. Hạ Long, Cẩm Phả, Uông Bí, Móng Cái.'
+    ]
   },
   [Region.III]: {
     name: 'Vùng III',
     wage: 4140000,
-    locations: 'Các thành phố, thị xã trực thuộc tỉnh còn lại và một số huyện có kinh tế phát triển.',
-    description: 'Các khu vực đô thị loại II, III và các địa bàn đang phát triển.'
+    locations: 'Các thành phố, thị xã trực thuộc tỉnh còn lại và các huyện có kinh tế phát triển.',
+    details: [
+      'Các thành phố trực thuộc tỉnh còn lại (trừ Vùng I, II).',
+      'Các thị xã trực thuộc tỉnh còn lại.',
+      'Các huyện: Đức Hòa, Bến Lức, Cần Đước, Cần Giuộc (Long An).',
+      'Các huyện: Trảng Bàng, Gò Dầu (Tây Ninh).',
+      'Các huyện: Thống Nhất, Cẩm Mỹ (Đồng Nai).',
+      'Các huyện: Phú Quốc (Kiên Giang).'
+    ]
   },
   [Region.IV]: {
     name: 'Vùng IV',
     wage: 3700000,
     locations: 'Các địa bàn còn lại (khu vực nông thôn, vùng sâu vùng xa).',
-    description: 'Khu vực nông nghiệp và các địa bàn khó khăn.'
+    details: [
+      'Toàn bộ các địa bàn không thuộc danh mục Vùng I, Vùng II và Vùng III.',
+      'Khu vực nông nghiệp và các địa bàn khó khăn.'
+    ]
   }
 };
 
-export const BASE_SALARY = 2340000; // Mức lương tham chiếu 2026
-export const MAX_INSURANCE_BASE = BASE_SALARY * 20; // 46,800,000 VND cho BHXH/BHYT
+export const BASE_SALARY = 2340000;
+export const MAX_INSURANCE_BASE = BASE_SALARY * 20;
 
-// Tỷ lệ đóng bảo hiểm của Người lao động (Employee)
 export const EMPLOYEE_INSURANCE_RATES = {
   BHXH: 0.08,
   BHYT: 0.015,
@@ -46,7 +74,6 @@ export const EMPLOYEE_INSURANCE_RATES = {
   TOTAL: 0.105
 };
 
-// Tỷ lệ đóng bảo hiểm của Người sử dụng lao động (Employer)
 export const EMPLOYER_INSURANCE_RATES = {
   BHXH: 0.175,
   BHYT: 0.03,
