@@ -78,6 +78,44 @@ const App: React.FC = () => {
     }
   };
 
+  const handleExportCSV = () => {
+    const bom = "\uFEFF";
+    const csvContent = [
+        ["BÁO CÁO DỰ TOÁN LƯƠNG 2026"],
+        ["Ngày lập", new Date().toLocaleDateString('vi-VN')],
+        [""],
+        ["THÔNG TIN ĐẦU VÀO"],
+        ["Mức lương (Gross)", result.gross],
+        ["Vùng", input.region],
+        ["Người phụ thuộc", input.dependents],
+        ["Loại nhân sự", input.isExpat ? "Expat" : (input.isProbation ? "Thử việc" : "Chính thức")],
+        [""],
+        ["CHI TIẾT KHẤU TRỪ", "GIÁ TRỊ (VNĐ)"],
+        ["Tổng thu nhập (GROSS)", result.gross],
+        ["Bảo hiểm xã hội", -result.insurance.bhxh],
+        ["Bảo hiểm y tế", -result.insurance.bhyt],
+        ["Bảo hiểm thất nghiệp", -result.insurance.bhtn],
+        ["Thu nhập trước thuế", result.incomeBeforeTax],
+        ["Giảm trừ gia cảnh", -DEDUCTIONS.PERSONAL_2026],
+        ["Giảm trừ người phụ thuộc", -(input.dependents * DEDUCTIONS.DEPENDENT_2026)],
+        ["Thu nhập tính thuế", result.taxableIncome],
+        ["Thuế TNCN", -result.tax],
+        ["LƯƠNG THỰC NHẬN (NET)", result.net],
+        [""],
+        ["CHI PHÍ DOANH NGHIỆP", result.employerCost]
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Vietnam_Salary_Breakdown_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const pieData = [
     { name: 'Thực nhận', value: result.net, color: '#6366f1' },
     { name: 'Bảo hiểm', value: result.insurance.total, color: '#10b981' },
@@ -243,13 +281,20 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-8 border-t border-white/10">
+        <div className="p-8 border-t border-white/10 space-y-3">
           <button 
             onClick={handleCaptureImage}
             disabled={isCapturing}
             className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all shadow-xl shadow-indigo-500/20 active:scale-95">
             <span className="material-icons">{isCapturing ? 'sync' : 'photo_camera'}</span>
-            {isCapturing ? 'Đang xử lý...' : 'Xuất Báo Cáo HD'}
+            {isCapturing ? 'Đang xử lý...' : 'Xuất Ảnh Báo Cáo'}
+          </button>
+          
+          <button 
+            onClick={handleExportCSV}
+            className="w-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white py-3 rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-white/5 hover:border-white/20 text-[10px]">
+            <span className="material-icons text-sm">table_view</span>
+            Xuất dữ liệu CSV
           </button>
         </div>
       </aside>
@@ -546,3 +591,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+    
